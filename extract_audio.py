@@ -27,7 +27,7 @@ def extract_audio(video_file: Path, audio_file: Path) -> None:
         "-i", str(video_file),
         "-vn",                 # no video
         "-acodec", "pcm_s16le",
-        "-ar", "16000",        # 16 kHz – optimal sample rate for Whisper
+        "-ar", "16000",        # 16 kHz - optimal sample rate for Whisper
         "-ac", "1",            # mono
         str(audio_file),
     ]
