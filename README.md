@@ -17,11 +17,22 @@
 ## 目录结构
 
 ```
-Wisper_HUA1/
-├── whisper/                  # openai/whisper 源码（内嵌）
-├── transcribe_mp4_folder.py  # 批量转写脚本
-├── requirements.txt          # Python 依赖
-└── README.md
+/home/semtp/notebooks/
+├── code/                         # 本仓库（Wisper_HUA1）
+│   ├── whisper/                  # openai/whisper 源码（内嵌）
+│   ├── transcribe_mp4_folder.py  # 批量转写脚本
+│   ├── requirements.txt          # Python 依赖
+│   └── README.md
+└── model/
+    └── whisper/
+        └── base.pt               # Whisper 模型权重文件
+```
+
+数据目录：
+```
+/data/fc702acbf33048f493d046821f22655a/
+├── ru_test_0417/   # 输入：待识别的 MP4 文件
+└── text/           # 输出：识别结果 TXT 文件
 ```
 
 ---
@@ -92,6 +103,11 @@ urllib.error.URLError: <urlopen error [Errno 99] Cannot assign requested address
      python transcribe_mp4_folder.py /path/to/mp4_folder --model /data/models/base.pt
      ```
 
+   本项目中，模型已放置于：
+   ```
+   /home/semtp/notebooks/model/whisper/base.pt
+   ```
+
 ---
 
 ## 使用方法
@@ -100,6 +116,17 @@ urllib.error.URLError: <urlopen error [Errno 99] Cannot assign requested address
 
 ```bash
 python transcribe_mp4_folder.py /path/to/mp4_folder
+```
+
+**本项目实际运行命令：**
+
+```bash
+cd /home/semtp/notebooks/code
+python transcribe_mp4_folder.py \
+    /data/fc702acbf33048f493d046821f22655a/ru_test_0417 \
+    --output-dir /data/fc702acbf33048f493d046821f22655a/text \
+    --model /home/semtp/notebooks/model/whisper/base.pt \
+    --language ru
 ```
 
 可选参数：
