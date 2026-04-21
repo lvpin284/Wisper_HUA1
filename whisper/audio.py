@@ -1,6 +1,5 @@
 import os
 from functools import lru_cache
-from subprocess import CalledProcessError, run
 from typing import Optional, Union
 
 import numpy as np
@@ -24,7 +23,9 @@ TOKENS_PER_SECOND = exact_div(SAMPLE_RATE, N_SAMPLES_PER_TOKEN)  # 20ms per audi
 
 def load_audio(file: str, sr: int = SAMPLE_RATE):
     """
-    Open an audio file and read as mono waveform, resampling as necessary
+    Open an audio file and read as mono waveform, resampling as necessary.
+
+    Uses PyAV (av) to decode audio — no external ffmpeg binary required.
 
     Parameters
     ----------
@@ -38,28 +39,32 @@ def load_audio(file: str, sr: int = SAMPLE_RATE):
     -------
     A NumPy array containing the audio waveform, in float32 dtype.
     """
-
-    # This launches a subprocess to decode audio while down-mixing
-    # and resampling as necessary.  Requires the ffmpeg CLI in PATH.
-    # fmt: off
-    cmd = [
-        "ffmpeg",
-        "-nostdin",
-        "-threads", "0",
-        "-i", file,
-        "-f", "s16le",
-        "-ac", "1",
-        "-acodec", "pcm_s16le",
-        "-ar", str(sr),
-        "-"
-    ]
-    # fmt: on
     try:
-        out = run(cmd, capture_output=True, check=True).stdout
-    except CalledProcessError as e:
-        raise RuntimeError(f"Failed to load audio: {e.stderr.decode()}") from e
+        import av
+    except ImportError as exc:
+        raise RuntimeError(
+            "PyAV is required to load audio. Install it with: pip install av"
+        ) from exc
 
-    return np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
+    try:
+        with av.open(file) as container:
+            # "fltp" = float planar; values are already in [-1.0, 1.0] float32 range.
+            resampler = av.AudioResampler(format="fltp", layout="mono", rate=sr)
+            chunks = []
+            for frame in container.decode(audio=0):
+                for resampled in resampler.resample(frame):
+                    # to_ndarray() returns shape (channels, samples); index 0 = mono channel
+                    chunks.append(resampled.to_ndarray()[0])
+            # flush any buffered samples from the resampler
+            for resampled in resampler.resample(None):
+                chunks.append(resampled.to_ndarray()[0])
+    except av.AVError as e:
+        raise RuntimeError(f"Failed to load audio: {e}") from e
+
+    if not chunks:
+        raise RuntimeError(f"No audio data decoded from: {file}")
+
+    return np.concatenate(chunks, axis=0).astype(np.float32)
 
 
 def pad_or_trim(array, length: int = N_SAMPLES, *, axis: int = -1):
