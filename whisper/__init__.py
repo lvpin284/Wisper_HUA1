@@ -2,6 +2,7 @@ import hashlib
 import io
 import os
 import urllib
+import urllib.error
 import warnings
 from typing import List, Optional, Union
 
@@ -70,21 +71,31 @@ def _download(url: str, root: str, in_memory: bool) -> Union[bytes, str]:
                 f"{download_target} exists, but the SHA256 checksum does not match; re-downloading the file"
             )
 
-    with urllib.request.urlopen(url) as source, open(download_target, "wb") as output:
-        with tqdm(
-            total=int(source.info().get("Content-Length")),
-            ncols=80,
-            unit="iB",
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as loop:
-            while True:
-                buffer = source.read(8192)
-                if not buffer:
-                    break
+    try:
+        with urllib.request.urlopen(url) as source, open(download_target, "wb") as output:
+            with tqdm(
+                total=int(source.info().get("Content-Length")),
+                ncols=80,
+                unit="iB",
+                unit_scale=True,
+                unit_divisor=1024,
+            ) as loop:
+                while True:
+                    buffer = source.read(8192)
+                    if not buffer:
+                        break
 
-                output.write(buffer)
-                loop.update(len(buffer))
+                    output.write(buffer)
+                    loop.update(len(buffer))
+    except (urllib.error.URLError, OSError) as exc:
+        raise RuntimeError(
+            f"Failed to download the Whisper model from:\n  {url}\n"
+            f"Network error: {exc}\n\n"
+            "This environment may not have internet access. "
+            "Please download the model file manually and place it at:\n"
+            f"  {download_target}\n"
+            "Then re-run the script."
+        ) from exc
 
     model_bytes = open(download_target, "rb").read()
     if hashlib.sha256(model_bytes).hexdigest() != expected_sha256:
