@@ -7,10 +7,8 @@ from pathlib import Path
 
 def format_timestamp(seconds: float) -> str:
     milliseconds = int(round(seconds * 1000))
-    hours, remainder = divmod(milliseconds, 3_600_000)
-    minutes, remainder = divmod(remainder, 60_000)
-    secs, ms = divmod(remainder, 1000)
-    return f"{hours:02d}:{minutes:02d}:{secs:02d}.{ms:03d}"
+    total_secs, ms = divmod(milliseconds, 1000)
+    return f"{total_secs}.{ms:03d}"
 
 
 def transcribe_file(model, input_file: Path, output_file: Path, language: str) -> None:
