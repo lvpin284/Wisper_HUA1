@@ -20,6 +20,7 @@
 /home/semtp/notebooks/
 ├── code/                         # 本仓库（Wisper_HUA1）
 │   ├── whisper/                  # openai/whisper 源码（内嵌）
+│   ├── extract_audio.py          # 视频提取音频脚本（新）
 │   ├── transcribe_mp4_folder.py  # 批量转写脚本
 │   ├── requirements.txt          # Python 依赖
 │   └── README.md
@@ -28,11 +29,13 @@
         └── base.pt               # Whisper 模型权重文件
 ```
 
-数据目录：
+数据目录（新格式）：
 ```
 /data/fc702acbf33048f493d046821f22655a/
-├── ru_test_0417/   # 输入：待识别的 MP4 文件
-└── text/           # 输出：识别结果 TXT 文件
+└── ru_test_0417/
+    ├── video/        # 输入：原始视频文件（MP4 等）
+    ├── audio/        # 中间：提取出的 WAV 音频文件
+    └── audio/text/   # 输出：识别结果 TXT 文件
 ```
 
 ---
@@ -112,13 +115,37 @@ urllib.error.URLError: <urlopen error [Errno 99] Cannot assign requested address
 
 ## 使用方法
 
+### 新流程（推荐）：视频 → 音频 → 文字
+
+**第一步：提取音频**（视频文件放入 `video/` 子目录）
+
+```bash
+python extract_audio.py /data/fc702acbf33048f493d046821f22655a/ru_test_0417
+```
+
+脚本会把 `video/` 下的所有视频文件转换为 WAV 格式，保存到 `audio/` 目录。
+
+**第二步：转写**（从 `audio/` 读取，结果写入 `audio/text/`）
+
+```bash
+python transcribe_mp4_folder.py \
+    /data/fc702acbf33048f493d046821f22655a/ru_test_0417 \
+    --new-layout \
+    --model /home/semtp/notebooks/model/whisper/base.pt \
+    --language ru
+```
+
+---
+
+### 经典流程（原始方式，仍然兼容）
+
 执行脚本（默认俄语 `ru`）：
 
 ```bash
 python transcribe_mp4_folder.py /path/to/mp4_folder
 ```
 
-**本项目实际运行命令：**
+**本项目经典运行命令：**
 
 ```bash
 cd /home/semtp/notebooks/code
@@ -129,11 +156,28 @@ python transcribe_mp4_folder.py \
     --language ru
 ```
 
-可选参数：
+---
+
+### extract_audio.py 参数说明
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--output-dir DIR` | 与输入目录相同 | 指定 txt 输出目录 |
+| `base_dir` | （必填）| 包含 `video/` 子目录的根目录 |
+| `--video-dir DIR` | `<base_dir>/video` | 覆盖视频输入目录 |
+| `--audio-dir DIR` | `<base_dir>/audio` | 覆盖音频输出目录 |
+
+支持的视频格式：`.mp4` `.mkv` `.avi` `.mov` `.flv` `.wmv` `.webm` `.ts` `.m4v`
+
+提取的音频为 **16 kHz 单声道 WAV**，是 Whisper 最优输入格式。
+
+---
+
+### transcribe_mp4_folder.py 参数说明
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--output-dir DIR` | 与输入目录相同 | 指定 txt 输出目录（经典模式） |
+| `--new-layout` | 关闭 | 启用新目录布局（从 `audio/` 读取，写入 `audio/text/`） |
 | `--model MODEL` | `base` | whisper 模型名（`tiny`/`base`/`small`/`medium`/`large`）或本地 `.pt` 文件路径 |
 | `--language LANG` | `ru` | 语言代码（如 `zh`、`en`、`ru`） |
 
