@@ -1,8 +1,23 @@
 #!/usr/bin/env python3
+"""Batch transcribe audio/video files to TXT using Whisper.
+
+Supports two layouts:
+
+  Classic layout  (original behaviour):
+      python transcribe_mp4_folder.py <input_dir> [--output-dir <output_dir>]
+      Reads *.mp4 from <input_dir>, writes *.txt to <output_dir>.
+
+  New layout  (use --new-layout):
+      python transcribe_mp4_folder.py <base_dir> --new-layout
+      Reads audio files from  <base_dir>/audio/
+      Writes TXT files to     <base_dir>/audio/text/
+"""
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
+
+AUDIO_EXTENSIONS = {".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".mp4", ".mkv"}
 
 
 def format_timestamp(seconds: float) -> str:
@@ -28,14 +43,29 @@ def transcribe_file(model, input_file: Path, output_file: Path, language: str) -
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Batch transcribe MP4 files in a folder to TXT with Whisper."
+        description="Batch transcribe audio/video files in a folder to TXT with Whisper."
     )
-    parser.add_argument("input_dir", type=Path, help="Path to the folder containing MP4 files")
+    parser.add_argument(
+        "input_dir",
+        type=Path,
+        help=(
+            "Classic layout: path to the folder containing MP4 files. "
+            "New layout (--new-layout): base directory that contains audio/ and video/ sub-folders."
+        ),
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=None,
-        help="Path to output TXT files (default: same as input_dir)",
+        help="Path to output TXT files (default: same as input_dir). Ignored when --new-layout is used.",
+    )
+    parser.add_argument(
+        "--new-layout",
+        action="store_true",
+        help=(
+            "Use the new directory layout: read audio files from <input_dir>/audio/ "
+            "and write TXT files to <input_dir>/audio/text/."
+        ),
     )
     parser.add_argument(
         "--model",
@@ -53,17 +83,29 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    input_dir = args.input_dir
-    output_dir = args.output_dir or input_dir
+    if args.new_layout:
+        base_dir = args.input_dir
+        input_dir = base_dir / "audio"
+        output_dir = base_dir / "audio" / "text"
+    else:
+        input_dir = args.input_dir
+        output_dir = args.output_dir or input_dir
 
     if not input_dir.exists() or not input_dir.is_dir():
         raise SystemExit(f"Input directory does not exist: {input_dir}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    mp4_files = sorted(input_dir.glob("*.mp4"))
-    if not mp4_files:
-        raise SystemExit(f"No .mp4 files found in: {input_dir}")
+    if args.new_layout:
+        audio_files = sorted(
+            f for f in input_dir.iterdir()
+            if f.is_file() and f.suffix.lower() in AUDIO_EXTENSIONS
+        )
+    else:
+        audio_files = sorted(input_dir.glob("*.mp4"))
+
+    if not audio_files:
+        raise SystemExit(f"No audio/video files found in: {input_dir}")
 
     try:
         import whisper
@@ -75,10 +117,10 @@ def main() -> None:
 
     model = whisper.load_model(str(Path(args.model).expanduser()))
 
-    for mp4_file in mp4_files:
-        output_file = output_dir / f"{mp4_file.stem}.txt"
-        transcribe_file(model, mp4_file, output_file, args.language)
-        print(f"Done: {mp4_file.name} -> {output_file}")
+    for audio_file in audio_files:
+        output_file = output_dir / f"{audio_file.stem}.txt"
+        transcribe_file(model, audio_file, output_file, args.language)
+        print(f"Done: {audio_file.name} -> {output_file}")
 
 
 if __name__ == "__main__":
