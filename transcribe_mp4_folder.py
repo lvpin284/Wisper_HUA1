@@ -73,7 +73,11 @@ def main() -> None:
             "and all dependencies are installed: pip install -r requirements.txt"
         ) from exc
 
-    model = whisper.load_model(args.model)
+    model_path = Path(args.model).expanduser()
+    if model_path.is_file():
+        model = whisper.load_model(model_path.stem, download_root=str(model_path.parent))
+    else:
+        model = whisper.load_model(args.model)
 
     for mp4_file in mp4_files:
         output_file = output_dir / f"{mp4_file.stem}.txt"
