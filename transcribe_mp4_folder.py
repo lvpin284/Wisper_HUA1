@@ -69,7 +69,8 @@ def main() -> None:
         import whisper
     except ImportError as exc:
         raise SystemExit(
-            "Missing dependency 'whisper'. Install it first: pip install -U openai-whisper"
+            "Cannot import whisper. Make sure the 'whisper/' package directory is present in the repo "
+            "and all dependencies are installed: pip install -r requirements.txt"
         ) from exc
 
     model = whisper.load_model(args.model)
