@@ -36,7 +36,7 @@ def transcribe_file(model, input_file: Path, output_file: Path, language: str) -
         end = format_timestamp(float(segment.get("end", 0.0)))
         text = str(segment.get("text", "")).strip()
         if text:
-            lines.append(f"{start} {end} 0 {text}")
+            lines.append(f"{start}\t{end}\t0\t{text}")
 
     output_file.write_text("\n".join(lines), encoding="utf-8")
 
